@@ -34,12 +34,22 @@ peers.on("connection", (socket) => {
     connectedPeers.delete(socket.id);
   });
 
-  socket.on("offerORAnswer", (data) => {
+  socket.on("offerOrAnswer", (data) => {
     for (const [socketId, socket] of connectedPeers.entries()) {
       // don't send to self
       if (socketId !== data.socketID) {
         console.log(socketId, data.payload.type);
         socket.emit("offerOrAnswer", data.payload);
+      }
+    }
+  });
+
+  socket.on("candidate", (data) => {
+    for (const [socketId, socket] of connectedPeers.entries()) {
+      // don't send to self
+      if (socketId !== data.socketID) {
+        console.log(socketId, data.payload.type);
+        socket.emit("candidate", data.payload);
       }
     }
   });

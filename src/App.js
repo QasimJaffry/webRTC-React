@@ -9,6 +9,7 @@ class App extends React.Component {
     this.remoteVideoRef = React.createRef();
 
     this.socket = null;
+    this.candidates = [];
   }
 
   componentDidMount() {
@@ -21,22 +22,37 @@ class App extends React.Component {
       console.log(success);
     });
 
-    const pcConfig = null;
+    this.socket.on("offerOrAnswer", (sdp) => {
+      this.textRef.value = JSON.stringify(sdp);
 
-    // const pcConfig = {
-    //   "iceServers" : [
-    //     {
-    //       urls: 'stun[STUN-IP]:[PORT]',
-    //       'credential': '[YOUR CREDENTIAL]',
-    //       'username': '[USERNAME]'
-    //     }
-    //   ]
-    // }
+      this.pc.setRemoteDescription(new RTCSessionDescription(sdp));
+    });
+
+    this.socket.on("candidate", (candidate) => {
+      // this.candidates = [...this.candidates, candidate];
+      this.pc.addIceCandidate(new RTCIceCandidate(candidate));
+    });
+
+    //  const pcConfig = null;
+
+    const pcConfig = {
+      iceServers: [
+        { urls: "stun:stun.services.mozilla.com" },
+        { urls: "stun:stun.l.google.com:19302" },
+        {
+          urls: "turn:numb.viagenie.ca",
+          credential: "beaver",
+          username: "webrtc.websitebeaver@gmail.com",
+        },
+      ],
+    };
 
     this.pc = new RTCPeerConnection(pcConfig); // instantiate connection between two peers
 
     this.pc.onicecandidate = (e) => {
-      if (e.candidate) console.log(JSON.stringify(e.candidate));
+      if (e.candidate) {
+        this.sendToPeer("candidate", e.candidate);
+      }
     };
 
     this.pc.oniceconnectionstatechange = (e) => {
@@ -70,16 +86,16 @@ class App extends React.Component {
     //   success(stream);
     // })().catch(failure);
   }
+
   createOffer = () => {
     console.log("offer");
-    this.pc.createOffer({ offerToReceiveVideo: 1 }).then(
-      (sdp) => {
-        //offer is made and if it is success then we send the sdp to localdesciotion
-        console.log(JSON.stringify(sdp));
-        this.pc.setLocalDescription(sdp);
-      },
-      (e) => {}
-    );
+    this.pc.createOffer({ offerToReceiveVideo: 1 }).then((sdp) => {
+      //offer is made and if it is success then we send the sdp to localdesciotion
+      console.log(JSON.stringify(sdp));
+      this.pc.setLocalDescription(sdp);
+
+      this.sendToPeer("offerOrAnswer", sdp);
+    });
   };
 
   setRemoteDescription = () => {
@@ -88,22 +104,33 @@ class App extends React.Component {
     this.pc.setRemoteDescription(new RTCSessionDescription(desc));
   };
 
+  sendToPeer = (messageType, payload) => {
+    this.socket.emit(messageType, {
+      socketID: this.socket.id,
+      payload,
+    });
+  };
+
   createAnswer = () => {
     console.log("Answer");
-    this.pc.createAnswer({ offerToReceiveVideo: 1 }).then(
-      (sdp) => {
-        //offer is made and if it is success then we send the sdp to localdesciotion for answering the call
-        console.log(JSON.stringify(sdp));
-        this.pc.setLocalDescription(sdp);
-      },
-      (e) => {}
-    );
+    this.pc.createAnswer({ offerToReceiveVideo: 1 }).then((sdp) => {
+      //offer is made and if it is success then we send the sdp to localdesciotion for answering the call
+      console.log(JSON.stringify(sdp));
+      this.pc.setLocalDescription(sdp);
+
+      this.sendToPeer("offerOrAnswer", sdp);
+    });
   };
 
   addCandidate = () => {
-    const candidate = JSON.parse(this.textRef.value);
-    console.log("Add Candidate", candidate);
-    this.pc.addIceCandidate(new RTCIceCandidate(candidate));
+    // const candidate = JSON.parse(this.textRef.value);
+    // console.log("Add Candidate", candidate);
+    // this.pc.addIceCandidate(new RTCIceCandidate(candidate));
+
+    this.candidates.forEach((candidate) => {
+      console.log(JSON.stringify(candidate));
+      this.pc.addIceCandidate(new RTCIceCandidate(candidate));
+    });
   };
 
   render() {
@@ -140,11 +167,6 @@ class App extends React.Component {
             this.textRef = ref;
           }}
         />
-
-        <button onClick={this.setRemoteDescription}>
-          Set Remote Description
-        </button>
-        <button onClick={this.addCandidate}>Add Candidate</button>
       </div>
     );
   }
