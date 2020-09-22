@@ -25,6 +25,7 @@ class App extends React.Component {
     this.socket.on("offerOrAnswer", (sdp) => {
       this.textRef.value = JSON.stringify(sdp);
 
+      // set sdp as remote description
       this.pc.setRemoteDescription(new RTCSessionDescription(sdp));
     });
 
@@ -47,31 +48,49 @@ class App extends React.Component {
       ],
     };
 
+    // create an instance of RTCPeerConnection
     this.pc = new RTCPeerConnection(pcConfig); // instantiate connection between two peers
 
+    // triggered when a new candidate is returned
     this.pc.onicecandidate = (e) => {
+      // send the candidates to the remote peer
+      // see addCandidate below to be triggered on the remote peer
       if (e.candidate) {
         this.sendToPeer("candidate", e.candidate);
       }
     };
 
+    // triggered when there is a change in connection state
     this.pc.oniceconnectionstatechange = (e) => {
       console.log(e); //if new peer is there
     };
 
-    this.pc.onaddstream = (e) => {
+    // triggered when a stream is added to pc, see below - this.pc.ontrack(stream)
+    this.pc.ontrack = (e) => {
       this.remoteVideoRef.current.srcObject = e.stream; //remote stream
     };
 
-    const constraints = { video: true };
-
+    // called when getUserMedia() successfully returns - see below
     const success = (stream) => {
       this.localVideoRef.current.srcObject = stream; //local stream
       this.pc.addStream(stream); //remote
     };
 
+    // called when getUserMedia() fails
     const failure = (e) => {
       console.log("Error", e);
+    };
+
+    const constraints = {
+      audio: false,
+      video: true,
+      // video: {
+      //   width: 1280,
+      //   height: 720
+      // },
+      // video: {
+      //   width: { min: 1280 },
+      // }
     };
 
     navigator.mediaDevices
@@ -89,9 +108,12 @@ class App extends React.Component {
 
   createOffer = () => {
     console.log("offer");
+    // initiates the creation of SDP
     this.pc.createOffer({ offerToReceiveVideo: 1 }).then((sdp) => {
       //offer is made and if it is success then we send the sdp to localdesciotion
       console.log(JSON.stringify(sdp));
+
+      // set offer sdp as local description
       this.pc.setLocalDescription(sdp);
 
       this.sendToPeer("offerOrAnswer", sdp);
@@ -99,8 +121,10 @@ class App extends React.Component {
   };
 
   setRemoteDescription = () => {
+    // retrieve and parse the SDP copied from the remote peer
     const desc = JSON.parse(this.textRef.value);
 
+    // set sdp as remote description
     this.pc.setRemoteDescription(new RTCSessionDescription(desc));
   };
 
@@ -111,11 +135,14 @@ class App extends React.Component {
     });
   };
 
+  // creates an SDP answer to an offer received from remote peer
   createAnswer = () => {
     console.log("Answer");
     this.pc.createAnswer({ offerToReceiveVideo: 1 }).then((sdp) => {
       //offer is made and if it is success then we send the sdp to localdesciotion for answering the call
       console.log(JSON.stringify(sdp));
+
+      // set answer sdp as local description
       this.pc.setLocalDescription(sdp);
 
       this.sendToPeer("offerOrAnswer", sdp);
@@ -123,12 +150,16 @@ class App extends React.Component {
   };
 
   addCandidate = () => {
+    // retrieve and parse the Candidate copied from the remote peer
+
     // const candidate = JSON.parse(this.textRef.value);
     // console.log("Add Candidate", candidate);
     // this.pc.addIceCandidate(new RTCIceCandidate(candidate));
 
     this.candidates.forEach((candidate) => {
       console.log(JSON.stringify(candidate));
+
+      // add the candidate to the peer connection
       this.pc.addIceCandidate(new RTCIceCandidate(candidate));
     });
   };

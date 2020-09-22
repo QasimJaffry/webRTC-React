@@ -21,7 +21,7 @@ io.listen(server);
 
 const peers = io.of("/webrtcPeer");
 
-//record of all socket connections
+// keep a reference of all socket connections
 let connectedPeers = new Map();
 
 peers.on("connection", (socket) => {
@@ -35,6 +35,7 @@ peers.on("connection", (socket) => {
   });
 
   socket.on("offerOrAnswer", (data) => {
+    // send to the other peer(s) if any
     for (const [socketId, socket] of connectedPeers.entries()) {
       // don't send to self
       if (socketId !== data.socketID) {
@@ -45,6 +46,7 @@ peers.on("connection", (socket) => {
   });
 
   socket.on("candidate", (data) => {
+    // send candidate to the other peer(s) if any
     for (const [socketId, socket] of connectedPeers.entries()) {
       // don't send to self
       if (socketId !== data.socketID) {
