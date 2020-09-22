@@ -1,13 +1,26 @@
 import React from "react";
 //ngork for https link
+import io from "socket.io-client";
+
 class App extends React.Component {
   constructor(props) {
     super();
     this.localVideoRef = React.createRef();
     this.remoteVideoRef = React.createRef();
+
+    this.socket = null;
   }
 
   componentDidMount() {
+    this.socket = io("/webrtcPeer", {
+      path: "/webrtc-practice",
+      query: {},
+    });
+
+    this.socket.on("connection-success", (success) => {
+      console.log(success);
+    });
+
     const pcConfig = null;
 
     // const pcConfig = {
