@@ -57,7 +57,6 @@ class App extends React.Component {
     //   success(stream);
     // })().catch(failure);
   }
-
   createOffer = () => {
     console.log("offer");
     this.pc.createOffer({ offerToReceiveVideo: 1 }).then(
