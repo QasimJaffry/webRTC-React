@@ -184,7 +184,9 @@ class App extends Component {
   componentDidMount = () => {
     this.socket = io.connect(this.serviceIP, {
       path: "/io/website",
-      query: {},
+      query: {
+        room: window.location.pathname,
+      },
     });
 
     this.socket.on("connection-success", (data) => {
@@ -193,11 +195,21 @@ class App extends Component {
       console.log(data.success);
       const status =
         data.peerCount > 1
-          ? `Total Connected Peers: ${data.peerCount}`
+          ? `Total Connected Peers to room: ${window.location.pathname} : ${data.peerCount}`
           : "Waiting for other peers to connect";
 
       this.setState({
         status: status,
+      });
+    });
+
+    //update new peers total
+    this.socket.on("joined-peers", (data) => {
+      this.setState({
+        status:
+          data.peerCount > 1
+            ? `Total Connected Peers to room: ${window.location.pathname} : ${data.peerCount}`
+            : "Waiting for other peers to connect",
       });
     });
 
@@ -219,6 +231,10 @@ class App extends Component {
           // remoteStream: remoteStreams.length > 0 && remoteStreams[0].stream || null,
           remoteStreams,
           ...selectedVideo,
+          status:
+            data.peerCount > 1
+              ? `Total Connected Peers to room: ${window.location.pathname} : ${data.peerCount}`
+              : "Waiting for other peers to connect",
         };
       });
     });

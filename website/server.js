@@ -7,11 +7,17 @@ var io = require("socket.io")({
 const app = express();
 const port = 8080;
 
+const rooms = {};
 // app.get('/', (req, res) => res.send('Hello World!!!!!'))
 
 //https://expressjs.com/en/guide/writing-middleware.html
 app.use(express.static(__dirname + "/build"));
 app.get("/", (req, res, next) => {
+  //default room
+  res.sendFile(__dirname + "/build/index.html");
+});
+
+app.get("/:room", (req, res, next) => {
   res.sendFile(__dirname + "/build/index.html");
 });
 
@@ -30,37 +36,66 @@ io.on("connection", (socket) => {
 const peers = io.of("/webrtcPeer");
 
 // keep a reference of all socket connections
-let connectedPeers = new Map();
+// let connectedPeers = new Map();
 
 peers.on("connection", (socket) => {
-  connectedPeers.set(socket.id, socket);
+  const room = socket.handshake.query.room;
+
+  rooms[room] =
+    (rooms[room] && rooms[room].set(socket.id, socket)) ||
+    new Map().set(socket.id, socket);
+  // connectedPeers.set(socket.id, socket);
 
   console.log(socket.id);
   socket.emit("connection-success", {
     success: socket.id,
-    peerCount: connectedPeers.size,
+    peerCount: rooms[room].size,
   });
 
-  const broadcast = () =>
-    socket.broadcast.emit("joined-peers", {
-      peerCount: connectedPeers.size,
-    });
+  // const broadcast = () =>
+  //   socket.broadcast.emit("joined-peers", {
+  //     peerCount: connectedPeers.size,
+  //   });
+
+  const broadcast = () => {
+    const _connectPeers = rooms[room];
+
+    for (const [socketID, _socket] of _connectPeers.entries()) {
+      if (socketID !== socket.id) {
+        _socket.emit("joined-peers", {
+          peerCount: rooms[room].size,
+        });
+      }
+    }
+  };
   broadcast();
 
-  const disconnectedPeer = (socketID) =>
-    socket.broadcast.emit("peer-disconnected", {
-      peerCount: connectedPeers.size,
-      socketID: socketID,
-    });
+  // const disconnectedPeer = (socketID) =>
+  //   socket.broadcast.emit("peer-disconnected", {
+  //     peerCount: connectedPeers.size,
+  //     socketID: socketID,
+  //   });
+
+  const disconnectedPeer = (socketID) => {
+    const _connectPeers = rooms[room];
+    for (const [_socketID, _socket] of _connectPeers.entries()) {
+      _socket.emit("peer-disconnected", {
+        peerCount: rooms[room].size,
+        socketID,
+      });
+    }
+  };
 
   socket.on("disconnect", () => {
     console.log("disconnected");
-    connectedPeers.delete(socket.id);
+    // connectedPeers.delete(socket.id);
+    rooms[room].delete(socket.id);
     disconnectedPeer(socket.id);
   });
 
   socket.on("onlinePeers", (data) => {
-    for (const [socketID, _socket] of connectedPeers.entries()) {
+    const _connectPeers = rooms[room];
+    for (const [socketID, _socket] of _connectPeers.entries()) {
       // don't send to self
       if (socketID !== data.socketID.local) {
         console.log("online-peer", data.socketID, socketID);
@@ -70,7 +105,8 @@ peers.on("connection", (socket) => {
   });
 
   socket.on("offer", (data) => {
-    for (const [socketID, socket] of connectedPeers.entries()) {
+    const _connectPeers = rooms[room];
+    for (const [socketID, socket] of _connectPeers.entries()) {
       // don't send to self
       if (socketID === data.socketID.remote) {
         // console.log('Offer', socketID, data.socketID, data.payload.type)
@@ -83,7 +119,8 @@ peers.on("connection", (socket) => {
   });
 
   socket.on("answer", (data) => {
-    for (const [socketID, socket] of connectedPeers.entries()) {
+    const _connectPeers = rooms[room];
+    for (const [socketID, socket] of _connectPeers.entries()) {
       if (socketID === data.socketID.remote) {
         console.log("Answer", socketID, data.socketID, data.payload.type);
         socket.emit("answer", {
@@ -106,8 +143,9 @@ peers.on("connection", (socket) => {
   // })
 
   socket.on("candidate", (data) => {
+    const _connectPeers = rooms[room];
     // send candidate to the other peer(s) if any
-    for (const [socketID, socket] of connectedPeers.entries()) {
+    for (const [socketID, socket] of _connectPeers.entries()) {
       if (socketID === data.socketID.remote) {
         socket.emit("candidate", {
           candidate: data.payload,
