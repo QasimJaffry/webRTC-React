@@ -1,7 +1,7 @@
 const express = require("express");
 
 let io = require("socket.io")({
-  path: "/webrtc-practice",
+  path: "/io/website",
 });
 
 const app = express();

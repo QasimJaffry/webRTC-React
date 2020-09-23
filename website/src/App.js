@@ -13,8 +13,8 @@ class App extends React.Component {
   }
 
   componentDidMount() {
-    this.socket = io("/webrtcPeer", {
-      path: "/webrtc-practice",
+    this.socket = io.connect("https://6601f291beab.ngrok.io/webrtcPeer", {
+      path: "/io/website",
       query: {},
     });
 
@@ -67,7 +67,7 @@ class App extends React.Component {
 
     // triggered when a stream is added to pc, see below - this.pc.ontrack(stream)
     this.pc.ontrack = (e) => {
-      this.remoteVideoRef.current.srcObject = e.stream; //remote stream
+      this.remoteVideoRef.current.srcObject = e.streams[0]; //remote stream
     };
 
     // called when getUserMedia() successfully returns - see below
