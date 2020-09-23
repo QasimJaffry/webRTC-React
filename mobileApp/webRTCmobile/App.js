@@ -46,7 +46,7 @@ class App extends React.Component {
   }
 
   componentDidMount() {
-    this.socket = io.connect('https://6601f291beab.ngrok.io/webrtcPeer', {
+    this.socket = io.connect('https://54b0c63d9b9e.ngrok.io/webrtcPeer', {
       path: '/io/website',
       query: {},
     });
