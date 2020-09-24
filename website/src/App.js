@@ -134,18 +134,57 @@ class App extends Component {
       };
 
       pc.ontrack = (e) => {
-        const remoteVideo = {
-          id: socketID,
-          name: socketID,
-          stream: e.streams[0],
-        };
+        let _remoteSteam = null;
+        let remoteStreams = this.state.remoteStreams;
+        let remoteVideo = {};
+
+        // check if stream exists in remotestreams
+        const rVideos = this.state.remoteStreams.filter(
+          (stream) => stream.id === socketID
+        );
+        // if it doesn't. create new and add it
+        if (rVideos.length) {
+          _remoteSteam = rVideos[0].stream;
+          _remoteSteam.addTrack(e.track, _remoteSteam);
+          remoteVideo = {
+            ...rVideos[0],
+            stream: _remoteSteam,
+          };
+          remoteStreams = this.state.remoteStreams.map((_remoteVideo) => {
+            return (
+              (_remoteVideo.id === remoteVideo.id && remoteVideo) ||
+              _remoteVideo
+            );
+          });
+        } else {
+          // it it does. add it
+          _remoteSteam = new MediaStream();
+          _remoteSteam.addTrack(e.track, _remoteSteam);
+
+          remoteVideo = {
+            id: socketID,
+            name: socketID,
+            stream: _remoteSteam,
+          };
+          remoteStreams = [...this.state.remoteStreams, remoteVideo];
+        }
+        // const remoteVideo = {
+        //   id: socketID,
+        //   name: socketID,
+        //   stream: e.streams[0],
+        // };
 
         this.setState((prevState) => {
           // If we already have a stream in display let it stay the same, otherwise use the latest stream
+          // const remoteStream =
+          //   prevState.remoteStreams.length > 0
+          //     ? {}
+          //     : { remoteStream: e.streams[0] };
+
           const remoteStream =
             prevState.remoteStreams.length > 0
               ? {}
-              : { remoteStream: e.streams[0] };
+              : { remoteStream: _remoteSteam };
 
           // get currently selected video
           let selectedVideo = prevState.remoteStreams.filter(
@@ -161,7 +200,7 @@ class App extends Component {
             ...selectedVideo,
             // remoteStream: e.streams[0],
             ...remoteStream,
-            remoteStreams: [...prevState.remoteStreams, remoteVideo],
+            remoteStreams, //: [...prevState.remoteStreams, remoteVideo],
           };
         });
       };
@@ -170,7 +209,12 @@ class App extends Component {
         // alert('GONE')
       };
 
-      if (this.state.localStream) pc.addStream(this.state.localStream);
+      if (this.state.localStream) {
+        // pc.addStream(this.state.localStream);
+        this.state.localStream.getTrack().forEach((track) => {
+          pc.addTrack(track, this.state.localStream);
+        });
+      }
 
       // return pc
       callback(pc);
@@ -373,8 +417,14 @@ class App extends Component {
             position: "absolute",
             right: 0,
             width: 200,
-            height: 200,
+            // height: 200,
+            // margin: 5,
+            // backgroundColor: "black",
+          }}
+          framStyle={{
+            width: 200,
             margin: 5,
+            borderRadius: 5,
             backgroundColor: "black",
           }}
           // ref={this.localVideoref}
@@ -402,13 +452,22 @@ class App extends Component {
           style={{
             zIndex: 3,
             position: "absolute",
-            margin: 10,
-            backgroundColor: "#cdc4ff4f",
-            padding: 10,
-            borderRadius: 5,
+            // margin: 10,
+            // backgroundColor: "#cdc4ff4f",
+            // padding: 10,
+            // borderRadius: 5,
           }}
         >
-          {statusText}
+          <div
+            style={{
+              margin: 10,
+              backgroundColor: "#cdc4ff4f",
+              padding: 10,
+              borderRadius: 5,
+            }}
+          >
+            {statusText}
+          </div>
         </div>
         <div>
           <Videos
